@@ -43,6 +43,7 @@ COUNTRY_CONFIG = {
         "serpapi_gl": "au",
         "phone_code": "+61",
         "phone_regex": r"(?:\+61\s?|0)[2-478](?:[\s.-]?\d){8}",
+        "phone_digits": 12,
         "location_suffix": "Australia",
     },
     "USA": {
@@ -51,6 +52,7 @@ COUNTRY_CONFIG = {
         "serpapi_gl": "us",
         "phone_code": "+1",
         "phone_regex": r"(?:\+1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}",
+        "phone_digits": 11,
         "location_suffix": "United States",
     },
     "UK": {
@@ -59,6 +61,7 @@ COUNTRY_CONFIG = {
         "serpapi_gl": "uk",
         "phone_code": "+44",
         "phone_regex": r"(?:\+44\s?|0)\d{2,4}[\s.-]?\d{3,4}[\s.-]?\d{3,4}",
+        "phone_digits": 12,
         "location_suffix": "United Kingdom",
     },
     "India": {
@@ -67,6 +70,7 @@ COUNTRY_CONFIG = {
         "serpapi_gl": "in",
         "phone_code": "+91",
         "phone_regex": r"(?:\+91[\s.-]?|0)?[6-9]\d{9}",
+        "phone_digits": 12,
         "location_suffix": "India",
     },
 }
@@ -108,8 +112,17 @@ PLATFORM_DOMAINS = {
     "monash.edu", "adelaide.edu.au", "unsw.edu.au",
 }
 
+# Non-decision-maker role keywords — leads with these roles get role blanked (lead kept)
+NON_DECISION_MAKER_KEYWORDS = {
+    "treasurer", "secretary", "intern", "junior", "assistant", "receptionist",
+    "clerk", "trainee", "volunteer", "student", "cashier", "bookkeeper",
+    "data entry", "filing", "mail room", "janitor", "custodian",
+    "support officer", "help desk", "customer service rep", "apprentice",
+    "warehouse", "driver", "delivery", "labourer", "laborer",
+}
+
 # ══════════════════════════════════════════════════════════════════════════════
-# INDUSTRY KEYWORD DICTIONARY — 25+ industries with 10-15 keywords each
+# INDUSTRY KEYWORD DICTIONARY — 25+ industries with 20-25 keywords each
 # ══════════════════════════════════════════════════════════════════════════════
 
 INDUSTRY_KEYWORDS = {
@@ -119,162 +132,281 @@ INDUSTRY_KEYWORDS = {
         "cosmetic dentistry", "dental crown", "wisdom tooth removal",
         "periodontal treatment", "dental veneers", "invisalign provider",
         "pediatric dentist", "teeth cleaning service",
+        "best dentist near me", "affordable dental care", "top rated dentist",
+        "dental practice", "family dentist", "denture clinic",
+        "dental surgery", "tooth extraction near me", "dental check up",
+        "sedation dentistry", "dental bridge specialist",
     ],
     "Doctor / General Practitioner": [
         "family doctor near me", "general practitioner clinic", "bulk billing doctor",
         "medical centre", "walk in clinic", "health check up",
         "vaccination clinic", "GP appointment", "after hours doctor",
         "women's health clinic", "men's health check", "pathology services",
+        "best GP near me", "doctor accepting new patients", "skin check doctor",
+        "travel doctor vaccination", "chronic disease management GP",
+        "mental health GP", "telehealth doctor", "occupational health doctor",
+        "sports medicine doctor", "urgent care clinic", "allied health centre",
     ],
     "Lawyer / Attorney": [
         "family lawyer", "criminal defence lawyer", "personal injury attorney",
         "divorce lawyer near me", "immigration lawyer", "business lawyer",
         "estate planning attorney", "property conveyancer", "employment lawyer",
         "traffic lawyer", "wills and probate", "commercial litigation",
+        "best lawyer near me", "affordable legal services", "top rated law firm",
+        "corporate lawyer", "intellectual property lawyer", "construction lawyer",
+        "medical negligence lawyer", "workers compensation lawyer",
+        "debt recovery lawyer", "small business legal advice", "contract lawyer",
+        "tax dispute lawyer", "strata lawyer",
     ],
     "Accountant": [
         "tax accountant near me", "small business accountant", "bookkeeping services",
         "tax return preparation", "BAS lodgement service", "financial auditing",
         "payroll services", "business advisory", "self managed super fund accountant",
         "company tax planning", "forensic accounting", "xero certified accountant",
+        "best accountant near me", "affordable tax services", "CPA near me",
+        "startup accountant", "trust accountant", "GST registration accountant",
+        "property tax accountant", "tax planning advisor", "cloud accounting service",
+        "quarterly BAS preparation", "business structure advice", "capital gains tax accountant",
     ],
     "Plumber": [
         "emergency plumber", "blocked drain plumber", "hot water system repair",
         "gas plumber near me", "bathroom renovation plumber", "leak detection service",
         "pipe relining", "backflow prevention", "plumbing maintenance",
         "sewer repair service", "tap replacement", "toilet repair plumber",
+        "best plumber near me", "affordable plumbing service", "24 hour plumber",
+        "commercial plumber", "licensed gas fitter", "water heater installation",
+        "burst pipe repair", "stormwater drainage plumber", "kitchen plumbing",
+        "plumber quote", "rainwater tank installation", "grease trap cleaning",
     ],
     "Electrician": [
         "emergency electrician", "electrical contractor near me", "solar panel installer",
         "switchboard upgrade", "LED lighting installation", "smoke alarm installation",
         "electrical safety inspection", "ceiling fan installation", "EV charger installer",
         "commercial electrician", "security lighting", "power point installation",
+        "best electrician near me", "affordable electrical services", "24 hour electrician",
+        "licensed electrician", "home rewiring", "electrical fault finding",
+        "three phase power installation", "data cabling electrician",
+        "outdoor lighting installation", "generator installation", "smart home electrician",
+        "industrial electrician", "strata electrician",
     ],
     "Real Estate Agent": [
         "real estate agent near me", "property valuation", "house for sale",
         "property management service", "real estate auctioneer", "buyer's agent",
         "commercial real estate", "rental property manager", "land for sale",
         "investment property advisor", "first home buyer agent", "luxury real estate",
+        "best real estate agent", "top selling agent", "property appraisal free",
+        "sell my house fast", "local real estate office", "real estate agency",
+        "property market analysis", "off market properties", "strata management",
+        "real estate consultant", "auction specialist agent",
     ],
     "Restaurant / Cafe": [
         "restaurant near me", "cafe near me", "fine dining restaurant",
         "pizza delivery", "catering service", "private dining",
         "brunch cafe", "takeaway food", "function venue",
         "restaurant booking", "food delivery service", "organic cafe",
+        "best restaurant near me", "top rated cafe", "family restaurant",
+        "italian restaurant", "thai restaurant near me", "sushi restaurant",
+        "vegan cafe", "breakfast cafe", "coffee roaster cafe",
+        "licensed restaurant", "seafood restaurant", "indian restaurant near me",
     ],
     "Gym / Fitness": [
         "gym near me", "personal trainer", "fitness centre",
         "crossfit gym", "yoga studio near me", "pilates classes",
         "boxing gym", "24 hour gym", "group fitness classes",
         "strength training gym", "weight loss program", "martial arts studio",
+        "best gym near me", "affordable gym membership", "women's only gym",
+        "functional fitness gym", "HIIT classes near me", "spin class",
+        "gym with pool", "bootcamp fitness", "senior fitness classes",
+        "powerlifting gym", "reformer pilates studio",
     ],
     "Auto Repair / Mechanic": [
         "car mechanic near me", "auto repair shop", "car service centre",
         "brake repair", "transmission repair", "tyre replacement",
         "roadworthy certificate", "logbook service", "car air conditioning repair",
         "diesel mechanic", "mobile mechanic", "pre purchase car inspection",
+        "best mechanic near me", "affordable car service", "auto electrician",
+        "clutch repair", "suspension repair", "wheel alignment near me",
+        "car battery replacement", "exhaust repair", "engine diagnostic",
+        "hybrid car mechanic", "fleet vehicle servicing",
     ],
     "Salon / Spa / Beauty": [
         "hair salon near me", "beauty salon", "day spa",
         "nail salon", "barber shop near me", "laser hair removal",
         "facial treatment", "massage therapy", "eyebrow threading",
         "bridal hair and makeup", "skin clinic", "waxing salon",
+        "best hair salon near me", "affordable beauty treatments", "keratin treatment",
+        "balayage specialist", "men's grooming salon", "eyelash extensions",
+        "microdermabrasion", "chemical peel treatment", "anti aging facial",
+        "hair colour specialist", "scalp treatment", "body contouring spa",
     ],
     "Chiropractor": [
         "chiropractor near me", "back pain treatment", "spinal adjustment",
         "sports chiropractor", "neck pain relief", "sciatica treatment",
         "posture correction", "chiropractic clinic", "headache treatment chiropractor",
         "pregnancy chiropractor", "pediatric chiropractor",
+        "best chiropractor near me", "affordable chiropractic care",
+        "chiropractic adjustment", "lower back pain chiropractor",
+        "disc herniation treatment", "whiplash treatment chiropractor",
+        "TMJ chiropractor", "chiropractic wellness centre", "spinal decompression therapy",
+        "shoulder pain chiropractor", "hip pain chiropractor",
     ],
     "Veterinarian": [
         "vet near me", "emergency vet", "pet vaccination",
         "dog grooming", "cat vet", "animal hospital",
         "pet dental care", "pet surgery", "veterinary clinic",
         "exotic animal vet", "pet microchipping", "puppy health check",
+        "best vet near me", "affordable vet clinic", "24 hour emergency vet",
+        "mobile vet service", "pet desexing", "senior pet care vet",
+        "avian vet", "reptile vet", "pet allergy treatment",
+        "veterinary specialist", "pet ultrasound", "dog behaviorist vet",
     ],
     "Insurance Agent": [
         "insurance broker near me", "car insurance quote", "home insurance",
         "life insurance advisor", "business insurance", "health insurance broker",
         "income protection insurance", "travel insurance", "landlord insurance",
         "professional indemnity insurance", "workers compensation insurance",
+        "best insurance broker", "affordable insurance quotes", "insurance agent near me",
+        "commercial vehicle insurance", "public liability insurance",
+        "cyber insurance broker", "strata insurance", "trade insurance",
+        "fleet insurance broker", "insurance comparison service",
+        "general insurance broker", "risk management insurance",
     ],
     "Financial Advisor": [
         "financial planner near me", "investment advisor", "retirement planning",
         "wealth management", "superannuation advice", "mortgage broker",
         "financial planning service", "estate planning advisor", "debt consolidation",
         "self managed super fund advisor", "tax effective investment",
+        "best financial advisor near me", "certified financial planner",
+        "independent financial advisor", "pension advisor", "portfolio management",
+        "financial coach", "business financial planning", "insurance planning advisor",
+        "property investment advisor", "succession planning advisor",
+        "fee only financial planner", "first home buyer financial advisor",
     ],
     "Photographer": [
         "wedding photographer", "portrait photographer", "commercial photographer",
         "real estate photographer", "event photographer", "newborn photographer",
         "family photographer", "headshot photographer", "product photography",
         "corporate photographer", "drone photographer",
+        "best photographer near me", "affordable photography services",
+        "graduation photographer", "maternity photographer", "pet photographer",
+        "food photographer", "fashion photographer", "architectural photographer",
+        "photo studio near me", "ecommerce product photography",
+        "sports photographer", "school photographer",
     ],
     "Landscaping": [
         "landscaper near me", "garden design service", "lawn mowing service",
         "tree removal", "irrigation installation", "retaining wall builder",
         "landscape architect", "garden maintenance", "artificial turf installer",
         "paving contractor", "outdoor living design", "hedge trimming service",
+        "best landscaper near me", "affordable landscaping", "garden makeover",
+        "pool landscaping", "native garden design", "commercial landscaping",
+        "stump grinding service", "mulching service", "garden lighting installation",
+        "deck and pergola builder", "vertical garden installer",
     ],
     "HVAC": [
         "air conditioning installation", "heating repair", "HVAC contractor",
         "ducted air conditioning", "split system installation", "furnace repair",
         "commercial HVAC", "air conditioning service", "ventilation system",
         "heat pump installer", "evaporative cooling", "air duct cleaning",
+        "best HVAC contractor near me", "affordable air conditioning",
+        "refrigerated cooling installation", "gas heating installation",
+        "underfloor heating", "air conditioning maintenance plan",
+        "commercial refrigeration", "HVAC energy audit", "zone control system",
+        "hydronic heating installer", "air purification system",
     ],
     "Roofing": [
         "roof repair near me", "roofing contractor", "roof replacement",
         "metal roofing", "tile roof repair", "gutter installation",
         "roof restoration", "commercial roofing", "roof leak repair",
         "colorbond roofing", "roof painting", "roof inspection service",
+        "best roofer near me", "affordable roof repair", "flat roof specialist",
+        "gutter guard installation", "skylight installation", "roof ventilation",
+        "emergency roof repair", "fascia and soffit repair", "roof cleaning service",
+        "asbestos roof removal", "terracotta roof restoration",
     ],
     "Pest Control": [
         "pest control near me", "termite inspection", "cockroach treatment",
         "rodent control", "bed bug treatment", "ant control service",
         "spider treatment", "commercial pest control", "pre purchase pest inspection",
         "possum removal", "wasp nest removal", "flea treatment",
+        "best pest control near me", "affordable pest treatment",
+        "termite barrier installation", "mosquito control", "bird proofing service",
+        "silverfish treatment", "timber pest inspection", "eco friendly pest control",
+        "fumigation service", "integrated pest management", "annual pest control plan",
     ],
     "Cleaning Service": [
         "house cleaning service", "commercial cleaning", "carpet cleaning",
         "end of lease cleaning", "office cleaning service", "window cleaning",
         "deep cleaning service", "pressure washing", "tile and grout cleaning",
         "upholstery cleaning", "regular house cleaning", "spring cleaning service",
+        "best cleaning service near me", "affordable house cleaning",
+        "strata cleaning service", "medical facility cleaning", "gym cleaning service",
+        "after construction cleaning", "airbnb cleaning service", "oven cleaning service",
+        "blind cleaning service", "school cleaning contractor", "warehouse cleaning",
     ],
     "IT Services": [
         "IT support near me", "managed IT services", "computer repair",
         "network setup", "cybersecurity services", "cloud computing solutions",
         "IT consulting", "data recovery service", "business IT support",
         "VoIP phone systems", "server maintenance", "IT helpdesk outsourcing",
+        "best IT support near me", "affordable managed IT", "IT security audit",
+        "Microsoft 365 setup", "backup and disaster recovery", "wireless network setup",
+        "website hosting service", "IT infrastructure management",
+        "remote IT support", "IT project management", "software development company",
     ],
     "Marketing Agency": [
         "digital marketing agency", "SEO services", "social media marketing",
         "PPC management", "content marketing agency", "web design agency",
         "branding agency", "email marketing service", "Google Ads management",
         "video production agency", "PR agency", "lead generation service",
+        "best marketing agency near me", "affordable digital marketing",
+        "local SEO services", "ecommerce marketing agency", "Facebook Ads agency",
+        "marketing strategy consultant", "conversion rate optimization",
+        "influencer marketing agency", "LinkedIn marketing service",
+        "reputation management agency", "marketing automation service",
     ],
     "Construction": [
         "home builder near me", "construction company", "renovation contractor",
         "commercial construction", "custom home builder", "bathroom renovation",
         "kitchen renovation", "extension builder", "granny flat builder",
         "project home builder", "demolition contractor", "concrete contractor",
+        "best builder near me", "affordable home renovation", "new home construction",
+        "duplex builder", "townhouse builder", "shopfitting contractor",
+        "structural steel builder", "civil construction company",
+        "industrial construction", "site preparation contractor", "formwork contractor",
     ],
     "Architecture": [
         "architect near me", "residential architect", "commercial architect",
         "interior designer", "building designer", "sustainable architecture",
         "heritage architect", "architectural drafting", "house design service",
         "landscape architect", "3D architectural rendering",
+        "best architect near me", "affordable architectural services",
+        "dual occupancy architect", "renovation architect", "passive house architect",
+        "town planning consultant", "development application architect",
+        "multi storey architect", "aged care facility architect",
+        "restaurant fit out designer", "retail design architect",
     ],
     "Physiotherapy": [
         "physiotherapist near me", "sports physio", "back pain physiotherapy",
         "post surgery rehabilitation", "neck pain treatment physio",
         "shoulder physio", "knee rehabilitation", "workplace injury physio",
         "dry needling treatment", "hydrotherapy", "exercise physiologist",
+        "best physio near me", "affordable physiotherapy", "pelvic floor physio",
+        "hand therapy physiotherapist", "vestibular physiotherapy",
+        "clinical pilates physio", "paediatric physiotherapy",
+        "aged care physiotherapy", "telehealth physiotherapy",
+        "chronic pain physiotherapist", "running injury physio",
     ],
     "Pharmacy": [
         "pharmacy near me", "compounding pharmacy", "online pharmacy",
         "late night pharmacy", "prescription delivery", "vaccination pharmacy",
         "travel health clinic pharmacy", "medication management",
         "health screening pharmacy", "weight management pharmacy",
+        "best pharmacy near me", "24 hour pharmacy", "discount pharmacy",
+        "diabetes management pharmacy", "blister pack pharmacy",
+        "naturopathic pharmacy", "veterinary compounding pharmacy",
+        "sleep apnea pharmacy", "mobility aids pharmacy",
+        "hormone compounding pharmacy", "pain management pharmacy",
     ],
 }
 
@@ -340,26 +472,36 @@ def domain_to_company_name(domain: str) -> str:
     return name.title() if name else domain
 
 
-def format_phone(raw_phone: str, country_code: str) -> str:
-    """Normalize phone number with country code prefix."""
+def format_phone(raw_phone: str, country: str) -> str:
+    """Normalize and strictly validate phone number.
+    Returns bare digits (e.g. '61XXXXXXXXXX') or '' if invalid.
+    AU: 61 + 10 digits = 12 total.  USA: 1 + 10 = 11.
+    UK: 44 + 10 = 12.  India: 91 + 10 = 12.
+    """
     if not raw_phone:
         return ""
-    # Clean the input
-    cleaned = raw_phone.strip()
-    # Already has + prefix — just clean whitespace
-    if cleaned.startswith("+"):
-        return re.sub(r"[\s.-]", "", cleaned)
-    # Remove common formatting
-    digits = re.sub(r"[^\d]", "", cleaned)
+    config = COUNTRY_CONFIG.get(country)
+    if not config:
+        return ""
+    code_digits = config["phone_code"].replace("+", "")  # e.g. "61"
+    expected_len = config["phone_digits"]  # e.g. 12
+
+    # Strip ALL non-digit characters (removes letters, +, spaces, dashes, etc.)
+    digits = re.sub(r"[^\d]", "", raw_phone)
     if not digits or len(digits) < 8:
         return ""
-    code_digits = country_code.replace("+", "")
-    # Strip leading 0 and prepend country code
+
+    # Strip leading 0 (local format) and prepend country code
     if digits.startswith("0"):
-        digits = digits[1:]
-    if digits.startswith(code_digits):
-        return f"+{digits}"
-    return f"{country_code}{digits}"
+        digits = code_digits + digits[1:]
+    # If doesn't start with country code, prepend it
+    if not digits.startswith(code_digits):
+        digits = code_digits + digits
+
+    # Strict validation: exact length required
+    if len(digits) != expected_len:
+        return ""
+    return digits
 
 
 def is_valid_email(email: str) -> bool:
@@ -393,6 +535,9 @@ def is_platform_domain(domain: str) -> bool:
     for pattern in edu_gov_patterns:
         if pattern in d or d.endswith(pattern):
             return True
+    # Filter .org domains (covers .org, .org.au, .org.uk, etc.)
+    if ".org" in d:
+        return True
     return False
 
 
@@ -588,13 +733,15 @@ class ApolloClient:
             "X-Api-Key": self.api_key,
         }
 
-    def search_people_by_domain(self, domain: str, per_page: int = 5) -> list[dict]:
+    def search_people_by_domain(self, domain: str, per_page: int = 10) -> list[dict]:
         """Search for people at a domain using the new api_search endpoint."""
         self.limiter.wait()
         url = f"{self.BASE_URL}/mixed_people/api_search"
         payload = {
             "q_organization_domains": domain,
             "per_page": per_page,
+            "reveal_personal_emails": True,
+            "person_emails_status": "verified",
         }
         try:
             resp = requests.post(url, json=payload, headers=self._headers(), timeout=30)
@@ -739,7 +886,10 @@ class LushaClient:
 class WebScraper:
     """Free web scraper for extracting contact info from company websites."""
 
-    CONTACT_PATHS = ["/contact", "/contact-us", "/about", "/about-us", "/team", "/our-team", ""]
+    CONTACT_PATHS = [
+        "/contact", "/contact-us", "/about", "/about-us", "/team", "/our-team",
+        "/people", "/staff", "/our-staff", "/leadership", "/management", "",
+    ]
 
     def __init__(self, country_code: str = "AU"):
         self.country_code = country_code
@@ -808,7 +958,7 @@ class WebScraper:
                 if not company_name:
                     company_name = title_text[:60]
 
-            return {"emails": emails[:5], "phones": phones[:5], "company_name": company_name}
+            return {"emails": emails[:10], "phones": phones[:10], "company_name": company_name}
         except Exception:
             return None
 
@@ -830,6 +980,7 @@ class LeadGenerationPipeline:
         output_folder: str,
         progress_callback=None,
         log_callback=None,
+        max_leads: int = 0,
     ):
         self.industry = industry
         self.country = country
@@ -838,6 +989,7 @@ class LeadGenerationPipeline:
         self.output_folder = output_folder
         self.progress_callback = progress_callback or (lambda *a: None)
         self.log_callback = log_callback or (lambda *a: None)
+        self.max_leads = max_leads
         self._cancelled = False
 
         self.config = COUNTRY_CONFIG[country]
@@ -918,13 +1070,13 @@ class LeadGenerationPipeline:
 
         db = self.config["semrush_db"]
         expanded = set(self.keywords)
-        seeds_to_expand = self.keywords[:7]
+        seeds_to_expand = self.keywords[:12]
 
         for i, seed in enumerate(seeds_to_expand):
             if self._cancelled:
                 return
             self._log(f"   Expanding: '{seed}'")
-            results = self.semrush.get_related_keywords(seed, db, display_limit=15)
+            results = self.semrush.get_related_keywords(seed, db, display_limit=25)
 
             added = 0
             for kw_data in results:
@@ -934,13 +1086,13 @@ class LeadGenerationPipeline:
                 if vol >= self.min_volume and cpc >= self.min_cpc and kw not in expanded:
                     expanded.add(kw)
                     added += 1
-                    if len(expanded) >= 50:
+                    if len(expanded) >= 80:
                         break
 
             self._log(f"   -> +{added} keywords (total: {len(expanded)})")
             pct = 6 + int((i + 1) / len(seeds_to_expand) * 14)
             self._progress(pct, f"Keyword expansion: {len(expanded)} keywords")
-            if len(expanded) >= 50:
+            if len(expanded) >= 80:
                 break
 
         self.keywords = list(expanded)
@@ -958,7 +1110,7 @@ class LeadGenerationPipeline:
         all_domains = set()
 
         # Use top keywords for domain discovery
-        keywords_to_search = self.keywords[:20]
+        keywords_to_search = self.keywords[:30]
         total_steps = len(keywords_to_search)
 
         for i, kw in enumerate(keywords_to_search):
@@ -966,21 +1118,21 @@ class LeadGenerationPipeline:
                 return
 
             # SEMrush organic — find sites ranking for this keyword
-            organic_results = self.semrush.get_organic_domains(kw, db, limit=10)
+            organic_results = self.semrush.get_organic_domains(kw, db, limit=15)
             for r in organic_results:
                 d = r["domain"]
                 if d not in all_domains:
                     all_domains.add(d)
 
             # SEMrush adwords — find sites running ads (high-intent)
-            ad_results = self.semrush.get_adwords_domains(kw, db, limit=5)
+            ad_results = self.semrush.get_adwords_domains(kw, db, limit=10)
             for r in ad_results:
                 d = r["domain"]
                 if d not in all_domains:
                     all_domains.add(d)
 
             # SerpApi as supplementary source (may be out of credits)
-            if i < 5:  # Only first 5 keywords to conserve credits
+            if i < 10:  # First 10 keywords for broader coverage
                 serp_domains = self.serpapi.search_keyword(f"{kw} {self.config['location_suffix']}", gl, num=10)
                 for d in serp_domains:
                     if d not in all_domains:
@@ -992,11 +1144,11 @@ class LeadGenerationPipeline:
             pct = 21 + int((i + 1) / total_steps * 24)
             self._progress(pct, f"Found {len(all_domains)} unique domains")
 
-            if len(all_domains) >= 80:
-                self._log("   Reached domain cap (80). Moving to enrichment.")
+            if len(all_domains) >= 150:
+                self._log("   Reached domain cap (150). Moving to enrichment.")
                 break
 
-        self.domains = list(all_domains)[:80]
+        self.domains = list(all_domains)[:150]
         self._log(f"   Total prospect domains: {len(self.domains)}")
         self._progress(45, f"{len(self.domains)} domains ready for enrichment")
 
@@ -1028,12 +1180,14 @@ class LeadGenerationPipeline:
                 self._log(f"   [{i + 1}/{total}] {domain}")
 
             # Step 2: Apollo people search — get names and roles
-            people = self.apollo.search_people_by_domain(domain, per_page=5)
+            people = self.apollo.search_people_by_domain(domain, per_page=10)
             for person in people:
                 first = person.get("first_name", "")
                 last = person.get("last_name", "")
                 title = person.get("title", "")
-                email = person.get("email", "")
+                # Prefer personal emails over organizational email
+                personal_emails = person.get("personal_emails", [])
+                email = personal_emails[0] if personal_emails else person.get("email", "")
                 if first:
                     lead = {
                         "name": f"{first} {last}".strip() if last else first,
@@ -1045,6 +1199,18 @@ class LeadGenerationPipeline:
                         "source": "Apollo",
                     }
                     domain_leads.append(lead)
+
+            # Step 2b: Try to get full names for single-word-name leads via Apollo enrich
+            for ld in domain_leads:
+                name = ld.get("name", "")
+                if name and " " not in name:
+                    enriched = self.apollo.enrich_person(name, "", domain)
+                    if enriched and enriched.get("name") and " " in enriched["name"]:
+                        ld["name"] = enriched["name"]
+                        if not ld.get("email") and enriched.get("email"):
+                            ld["email"] = enriched["email"]
+                        if not ld.get("role") and enriched.get("role"):
+                            ld["role"] = enriched["role"]
 
             # Step 3: Lusha company data — fill in company details
             if not company_name:
@@ -1065,6 +1231,10 @@ class LeadGenerationPipeline:
                     if last_n and len(last_n) > 1:  # Has a real last name
                         lusha_person = self.lusha.enrich_person(first_n, last_n, domain)
                         if lusha_person:
+                            # Update name if Lusha has a fuller name
+                            if lusha_person.get("name") and " " in lusha_person["name"]:
+                                if " " not in ld.get("name", ""):
+                                    ld["name"] = lusha_person["name"]
                             if not ld.get("email") and lusha_person.get("email"):
                                 ld["email"] = lusha_person["email"]
                             if not ld.get("phone") and lusha_person.get("phone"):
@@ -1136,14 +1306,17 @@ class LeadGenerationPipeline:
         self._progress(91, "Cleaning and deduplicating leads...")
         self._log("Phase 5: Data cleanup")
 
-        phone_code = self.config["phone_code"]
         cleaned = []
         seen = set()
 
         for lead in self.leads:
-            # Format phone number
+            # Filter .org domains that slipped through
+            if lead.get("domain") and ".org" in lead["domain"].lower():
+                continue
+
+            # Format and strictly validate phone number
             if lead.get("phone"):
-                lead["phone"] = format_phone(lead["phone"], phone_code)
+                lead["phone"] = format_phone(lead["phone"], self.country)
 
             # Clean company name
             if not lead.get("company") or lead["company"] == lead.get("domain", ""):
@@ -1152,6 +1325,12 @@ class LeadGenerationPipeline:
             # Validate email
             if lead.get("email") and not is_valid_email(lead["email"]):
                 lead["email"] = ""
+
+            # Blank non-decision-maker roles (keep the lead, just clear role)
+            if lead.get("role"):
+                role_lower = lead["role"].lower()
+                if any(kw in role_lower for kw in NON_DECISION_MAKER_KEYWORDS):
+                    lead["role"] = ""
 
             # Skip entries with no useful data at all
             if not lead.get("name") and not lead.get("email") and not lead.get("phone"):
@@ -1186,6 +1365,32 @@ class LeadGenerationPipeline:
         if not self.leads:
             self._log("   No leads to export.")
             return ""
+
+        # Score and sort leads by quality
+        def _lead_score(lead):
+            score = 0
+            has_email = bool(lead.get("email"))
+            has_phone = bool(lead.get("phone"))
+            if has_email and has_phone:
+                score += 300
+            elif has_email:
+                score += 200
+            elif has_phone:
+                score += 100
+            if lead.get("name") and " " in lead["name"]:
+                score += 50
+            if lead.get("role"):
+                score += 25
+            if lead.get("company"):
+                score += 10
+            return score
+
+        self.leads.sort(key=_lead_score, reverse=True)
+
+        # Apply max_leads cap
+        if self.max_leads > 0 and len(self.leads) > self.max_leads:
+            self._log(f"   Capping to top {self.max_leads} leads by quality score")
+            self.leads = self.leads[:self.max_leads]
 
         os.makedirs(self.output_folder, exist_ok=True)
 
@@ -1369,11 +1574,22 @@ class LeadGeneratorApp:
         ).pack(fill=tk.X, pady=(3, 0))
 
         cpc_frame = ttk.Frame(row2, style="Card.TFrame")
-        cpc_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        cpc_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
         ttk.Label(cpc_frame, text="Min CPC ($)", style="CardLabel.TLabel").pack(anchor=tk.W)
         self.cpc_var = tk.StringVar(value="1.0")
         tk.Entry(
             cpc_frame, textvariable=self.cpc_var,
+            bg=COLORS["input_bg"], fg=COLORS["text_primary"],
+            insertbackground=COLORS["text_primary"], font=("Segoe UI", 10),
+            relief=tk.FLAT, bd=5,
+        ).pack(fill=tk.X, pady=(3, 0))
+
+        max_leads_frame = ttk.Frame(row2, style="Card.TFrame")
+        max_leads_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Label(max_leads_frame, text="Max Leads (0=all)", style="CardLabel.TLabel").pack(anchor=tk.W)
+        self.max_leads_var = tk.StringVar(value="50")
+        tk.Entry(
+            max_leads_frame, textvariable=self.max_leads_var,
             bg=COLORS["input_bg"], fg=COLORS["text_primary"],
             insertbackground=COLORS["text_primary"], font=("Segoe UI", 10),
             relief=tk.FLAT, bd=5,
@@ -1483,6 +1699,13 @@ class LeadGeneratorApp:
         except ValueError:
             messagebox.showwarning("Invalid Input", "Min CPC must be a positive number.")
             return False
+        try:
+            max_leads = int(self.max_leads_var.get())
+            if max_leads < 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showwarning("Invalid Input", "Max Leads must be a non-negative integer (0 = unlimited).")
+            return False
         if not self.folder_var.get().strip():
             messagebox.showwarning("Input Required", "Please specify an output folder.")
             return False
@@ -1504,6 +1727,7 @@ class LeadGeneratorApp:
             output_folder=self.folder_var.get().strip(),
             progress_callback=self._update_progress_safe,
             log_callback=self._append_log_safe,
+            max_leads=int(self.max_leads_var.get()),
         )
         self.pipeline_thread = threading.Thread(target=self._run_pipeline, daemon=True)
         self.pipeline_thread.start()
