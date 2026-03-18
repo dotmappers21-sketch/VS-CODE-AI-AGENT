@@ -43,7 +43,7 @@ COUNTRY_CONFIG = {
         "serpapi_gl": "au",
         "phone_code": "+61",
         "phone_regex": r"(?:\+61\s?|0)[2-478](?:[\s.-]?\d){8}",
-        "phone_digits": 12,
+        "phone_digits": 11,
         "location_suffix": "Australia",
     },
     "USA": {
@@ -113,11 +113,10 @@ PLATFORM_DOMAINS = {
 }
 
 # Non-decision-maker role keywords — leads with these roles get role blanked (lead kept)
+# Kept minimal so more designations qualify as leads
 NON_DECISION_MAKER_KEYWORDS = {
-    "treasurer", "secretary", "intern", "junior", "assistant", "receptionist",
-    "clerk", "trainee", "volunteer", "student", "cashier", "bookkeeper",
-    "data entry", "filing", "mail room", "janitor", "custodian",
-    "support officer", "help desk", "customer service rep", "apprentice",
+    "intern", "trainee", "volunteer", "student", "apprentice",
+    "janitor", "custodian", "mail room", "filing",
     "warehouse", "driver", "delivery", "labourer", "laborer",
 }
 
@@ -474,9 +473,10 @@ def domain_to_company_name(domain: str) -> str:
 
 def format_phone(raw_phone: str, country: str) -> str:
     """Normalize and strictly validate phone number.
-    Returns bare digits (e.g. '61XXXXXXXXXX') or '' if invalid.
-    AU: 61 + 10 digits = 12 total.  USA: 1 + 10 = 11.
-    UK: 44 + 10 = 12.  India: 91 + 10 = 12.
+    Returns '+' prefixed digits (e.g. '+61XXXXXXXXXX') or '' if invalid.
+    The '+' prefix prevents Excel from converting to scientific notation.
+    AU: +61 + 10 digits = 12 digit body.  USA: +1 + 10 = 11.
+    UK: +44 + 10 = 12.  India: +91 + 10 = 12.
     """
     if not raw_phone:
         return ""
@@ -487,7 +487,7 @@ def format_phone(raw_phone: str, country: str) -> str:
     expected_len = config["phone_digits"]  # e.g. 12
 
     # Strip ALL non-digit characters (removes letters, +, spaces, dashes, etc.)
-    digits = re.sub(r"[^\d]", "", raw_phone)
+    digits = re.sub(r"[^\d]", "", str(raw_phone))
     if not digits or len(digits) < 8:
         return ""
 
@@ -501,7 +501,7 @@ def format_phone(raw_phone: str, country: str) -> str:
     # Strict validation: exact length required
     if len(digits) != expected_len:
         return ""
-    return digits
+    return f"+{digits}"
 
 
 def is_valid_email(email: str) -> bool:
@@ -519,6 +519,48 @@ def is_valid_email(email: str) -> bool:
     ]
     email_lower = email.lower()
     return not any(bp in email_lower for bp in bad_patterns)
+
+
+# Generic/company email prefixes that indicate a shared inbox, NOT a personal email
+GENERIC_EMAIL_PREFIXES = {
+    "info", "enquiries", "enquiry", "contact", "reception", "admin",
+    "office", "hello", "hi", "help", "support", "sales", "marketing",
+    "billing", "accounts", "finance", "hr", "careers", "jobs",
+    "team", "general", "mail", "service", "services", "bookings",
+    "booking", "appointments", "appointment", "feedback", "media",
+    "press", "news", "newsletter", "subscribe", "unsubscribe",
+    "webmaster", "postmaster", "abuse", "security", "legal",
+    "compliance", "privacy", "orders", "order", "returns", "shipping",
+    "dispatch", "warehouse", "operations", "customerservice",
+    "customer.service", "customer-service", "customercare",
+    "reception", "frontdesk", "front.desk", "front-desk",
+    "practice", "clinic", "surgery", "studio", "salon", "shop",
+    "store", "manager", "management",
+}
+
+
+def is_personal_email(email: str) -> bool:
+    """Check if an email appears to be a personal email (not a generic/company inbox).
+    Returns True if it looks personal, False if it looks generic.
+    """
+    if not email or "@" not in email:
+        return False
+    local_part = email.lower().split("@")[0].strip()
+    return local_part not in GENERIC_EMAIL_PREFIXES
+
+
+def match_email_to_name(email: str, first_name: str, last_name: str) -> bool:
+    """Check if an email's local part matches patterns for a person's name."""
+    if not email or not first_name:
+        return False
+    local = email.lower().split("@")[0]
+    f = first_name.lower().strip()
+    l = last_name.lower().strip() if last_name else ""
+    if f and len(f) > 1 and f in local:
+        return True
+    if l and len(l) > 1 and l in local:
+        return True
+    return False
 
 
 def is_platform_domain(domain: str) -> bool:
@@ -874,7 +916,16 @@ class LushaClient:
                         "company": person_data.get("company", {}).get("name", ""),
                     }
                     if person_data.get("emails"):
-                        result["email"] = person_data["emails"][0].get("email", "")
+                        # Pick the most personal-looking email from array
+                        chosen_email = ""
+                        for em in person_data["emails"]:
+                            addr = em.get("email", "")
+                            if addr and is_personal_email(addr):
+                                chosen_email = addr
+                                break
+                        if not chosen_email:
+                            chosen_email = person_data["emails"][0].get("email", "")
+                        result["email"] = chosen_email
                     if person_data.get("phoneNumbers"):
                         result["phone"] = person_data["phoneNumbers"][0].get("number", "")
                     return result
@@ -905,18 +956,27 @@ class WebScraper:
 
     def scrape_domain(self, domain: str) -> dict:
         """Scrape a domain for contact information."""
-        result = {"emails": [], "phones": [], "company_name": ""}
+        result = {"emails": [], "phones": [], "company_name": "", "name_email_pairs": []}
         for path in self.CONTACT_PATHS:
             url = f"https://{domain}{path}"
             page_data = self._scrape_page(url)
             if page_data:
                 result["emails"].extend(page_data.get("emails", []))
                 result["phones"].extend(page_data.get("phones", []))
+                result["name_email_pairs"].extend(page_data.get("name_email_pairs", []))
                 if not result["company_name"] and page_data.get("company_name"):
                     result["company_name"] = page_data["company_name"]
         # Deduplicate
         result["emails"] = list(dict.fromkeys(e for e in result["emails"] if is_valid_email(e)))
         result["phones"] = list(dict.fromkeys(result["phones"]))
+        # Deduplicate name_email_pairs by email
+        seen_pair_emails = set()
+        unique_pairs = []
+        for pair in result["name_email_pairs"]:
+            if pair["email"] not in seen_pair_emails:
+                seen_pair_emails.add(pair["email"])
+                unique_pairs.append(pair)
+        result["name_email_pairs"] = unique_pairs
         return result
 
     def _scrape_page(self, url: str) -> dict | None:
@@ -958,7 +1018,26 @@ class WebScraper:
                 if not company_name:
                     company_name = title_text[:60]
 
-            return {"emails": emails[:10], "phones": phones[:10], "company_name": company_name}
+            # Try to find name-email associations from structured HTML
+            name_email_pairs = []
+            for container in soup.find_all(
+                ["div", "li", "article", "section"],
+                class_=re.compile(r"team|staff|member|person|profile|card|employee|director|partner", re.I),
+            ):
+                container_text = container.get_text(separator=" ", strip=True)
+                container_emails = re.findall(
+                    r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}", container_text)
+                # Look for name-like patterns (2-3 capitalized words)
+                name_matches = re.findall(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,2})\b", container_text)
+                if container_emails and name_matches:
+                    for ce in container_emails:
+                        if is_valid_email(ce):
+                            name_email_pairs.append({"name": name_matches[0], "email": ce})
+
+            return {
+                "emails": emails[:10], "phones": phones[:10],
+                "company_name": company_name, "name_email_pairs": name_email_pairs[:10],
+            }
         except Exception:
             return None
 
@@ -1187,7 +1266,21 @@ class LeadGenerationPipeline:
                 title = person.get("title", "")
                 # Prefer personal emails over organizational email
                 personal_emails = person.get("personal_emails", [])
-                email = personal_emails[0] if personal_emails else person.get("email", "")
+                org_email = person.get("email", "")
+                # Pick best email: personal first, then org email only if it looks personal
+                email = ""
+                if personal_emails:
+                    # Try to find a personal one among the list
+                    for pe in personal_emails:
+                        if is_personal_email(pe):
+                            email = pe
+                            break
+                    if not email:
+                        email = personal_emails[0]
+                if not email and org_email and is_personal_email(org_email):
+                    email = org_email
+                # Store generic org email as fallback (will be used only if no personal found)
+                generic_email = org_email if (org_email and not is_personal_email(org_email)) else ""
                 if first:
                     lead = {
                         "name": f"{first} {last}".strip() if last else first,
@@ -1197,17 +1290,24 @@ class LeadGenerationPipeline:
                         "email": email or "",
                         "phone": "",
                         "source": "Apollo",
+                        "_generic_email": generic_email,  # internal: fallback only
                     }
                     domain_leads.append(lead)
 
-            # Step 2b: Try to get full names for single-word-name leads via Apollo enrich
+            # Step 2b: Try to get full names + personal emails for leads via Apollo enrich
             for ld in domain_leads:
                 name = ld.get("name", "")
-                if name and " " not in name:
-                    enriched = self.apollo.enrich_person(name, "", domain)
-                    if enriched and enriched.get("name") and " " in enriched["name"]:
-                        ld["name"] = enriched["name"]
-                        if not ld.get("email") and enriched.get("email"):
+                needs_name = name and " " not in name
+                needs_email = not ld.get("email") or not is_personal_email(ld.get("email", ""))
+                if needs_name or needs_email:
+                    parts = name.split() if name else [""]
+                    first_n = parts[0] if parts else ""
+                    last_n = parts[-1] if len(parts) > 1 else ""
+                    enriched = self.apollo.enrich_person(first_n, last_n, domain)
+                    if enriched:
+                        if needs_name and enriched.get("name") and " " in enriched["name"]:
+                            ld["name"] = enriched["name"]
+                        if enriched.get("email") and is_personal_email(enriched["email"]):
                             ld["email"] = enriched["email"]
                         if not ld.get("role") and enriched.get("role"):
                             ld["role"] = enriched["role"]
@@ -1235,8 +1335,14 @@ class LeadGenerationPipeline:
                             if lusha_person.get("name") and " " in lusha_person["name"]:
                                 if " " not in ld.get("name", ""):
                                     ld["name"] = lusha_person["name"]
-                            if not ld.get("email") and lusha_person.get("email"):
-                                ld["email"] = lusha_person["email"]
+                            # Prefer personal email from Lusha
+                            lusha_email = lusha_person.get("email", "")
+                            if lusha_email and is_personal_email(lusha_email):
+                                # Replace if current is missing or generic
+                                if not ld.get("email") or not is_personal_email(ld.get("email", "")):
+                                    ld["email"] = lusha_email
+                            elif not ld.get("email") and lusha_email:
+                                ld["email"] = lusha_email
                             if not ld.get("phone") and lusha_person.get("phone"):
                                 ld["phone"] = lusha_person["phone"]
                             if not ld.get("role") and lusha_person.get("role"):
@@ -1248,17 +1354,61 @@ class LeadGenerationPipeline:
             scraped_company = scraped.get("company_name", "")
             scraped_emails = scraped.get("emails", [])
             scraped_phones = scraped.get("phones", [])
+            scraped_pairs = scraped.get("name_email_pairs", [])
 
             if not company_name and scraped_company:
                 company_name = scraped_company
 
-            # Fill missing data in existing leads from scraping
-            email_idx = 0
+            # Separate scraped emails into personal vs generic
+            scraped_personal = [e for e in scraped_emails if is_personal_email(e)]
+            scraped_generic = [e for e in scraped_emails if not is_personal_email(e)]
+
+            # Step 5b: Try to match scraped emails to specific leads by name
             for ld in domain_leads:
-                if not ld.get("email") and email_idx < len(scraped_emails):
-                    ld["email"] = scraped_emails[email_idx]
-                    email_idx += 1
-                    ld["source"] += "+Scrape"
+                lead_name = ld.get("name", "")
+                if not lead_name or " " not in lead_name:
+                    continue
+                # Skip if already has a personal email
+                if ld.get("email") and is_personal_email(ld.get("email", "")):
+                    continue
+                parts = lead_name.split()
+                first_n = parts[0]
+                last_n = parts[-1] if len(parts) > 1 else ""
+                # Check name_email_pairs for direct matches
+                matched = False
+                for pair in scraped_pairs:
+                    if match_email_to_name(pair["email"], first_n, last_n):
+                        ld["email"] = pair["email"]
+                        ld["source"] += "+NameMatch"
+                        matched = True
+                        break
+                # Check all scraped personal emails for name-pattern matches
+                if not matched:
+                    for se in scraped_personal:
+                        if match_email_to_name(se, first_n, last_n):
+                            ld["email"] = se
+                            ld["source"] += "+NameMatch"
+                            break
+
+            # Fill missing data in existing leads from scraping
+            personal_idx = 0
+            generic_idx = 0
+            for ld in domain_leads:
+                current_email = ld.get("email", "")
+                if not current_email or not is_personal_email(current_email):
+                    # Try to assign a personal email from scraping
+                    if personal_idx < len(scraped_personal):
+                        ld["email"] = scraped_personal[personal_idx]
+                        personal_idx += 1
+                        ld["source"] += "+Scrape"
+                    elif not current_email:
+                        # No email at all — use generic scraped or the stored fallback
+                        if generic_idx < len(scraped_generic):
+                            ld["email"] = scraped_generic[generic_idx]
+                            generic_idx += 1
+                            ld["source"] += "+Scrape"
+                        elif ld.get("_generic_email"):
+                            ld["email"] = ld["_generic_email"]
                 if not ld.get("phone"):
                     if scraped_phones:
                         ld["phone"] = scraped_phones[0]
@@ -1274,20 +1424,35 @@ class LeadGenerationPipeline:
                     if info.get("phone"):
                         ld["phone"] = info["phone"]
                         ld["source"] += "+SerpApi"
-                    if not ld.get("email") and info.get("email"):
-                        ld["email"] = info["email"]
+                    if info.get("email"):
+                        serp_email = info["email"]
+                        if is_personal_email(serp_email):
+                            if not ld.get("email") or not is_personal_email(ld.get("email", "")):
+                                ld["email"] = serp_email
+                        elif not ld.get("email"):
+                            ld["email"] = serp_email
+
+            # Clean up internal fields before adding to leads
+            for ld in domain_leads:
+                ld.pop("_generic_email", None)
 
             # If Apollo found people, use them
             if domain_leads:
                 self.leads.extend(domain_leads)
             else:
                 # Fallback: create a domain-level lead from scraped/org data
+                # Prefer personal email even in fallback
+                fallback_email = ""
+                if scraped_personal:
+                    fallback_email = scraped_personal[0]
+                elif scraped_emails:
+                    fallback_email = scraped_emails[0]
                 fallback = {
                     "name": "",
                     "domain": domain,
                     "company": company_name or domain_to_company_name(domain),
                     "role": "",
-                    "email": scraped_emails[0] if scraped_emails else "",
+                    "email": fallback_email,
                     "phone": company_phone or (scraped_phones[0] if scraped_phones else ""),
                     "source": "Org+Scrape",
                 }
@@ -1310,9 +1475,10 @@ class LeadGenerationPipeline:
         seen = set()
 
         for lead in self.leads:
-            # Filter .org domains that slipped through
+            # Filter .org domains UNLESS lead has email or phone
             if lead.get("domain") and ".org" in lead["domain"].lower():
-                continue
+                if not lead.get("email") and not lead.get("phone"):
+                    continue
 
             # Format and strictly validate phone number
             if lead.get("phone"):
@@ -1332,8 +1498,9 @@ class LeadGenerationPipeline:
                 if any(kw in role_lower for kw in NON_DECISION_MAKER_KEYWORDS):
                     lead["role"] = ""
 
-            # Skip entries with no useful data at all
-            if not lead.get("name") and not lead.get("email") and not lead.get("phone"):
+            # Keep ANY lead that has email or phone, regardless of other fields
+            # Only skip if there is no email AND no phone AND no name
+            if not lead.get("email") and not lead.get("phone") and not lead.get("name"):
                 continue
 
             # Deduplicate
@@ -1366,62 +1533,86 @@ class LeadGenerationPipeline:
             self._log("   No leads to export.")
             return ""
 
-        # Score and sort leads by quality
+        # Score and sort leads by quality — 5-tier priority
         def _lead_score(lead):
             score = 0
             has_email = bool(lead.get("email"))
             has_phone = bool(lead.get("phone"))
-            if has_email and has_phone:
-                score += 300
-            elif has_email:
-                score += 200
+            email_is_personal = has_email and is_personal_email(lead.get("email", ""))
+            email_is_generic = has_email and not email_is_personal
+
+            # Primary scoring tiers (mutually exclusive)
+            if has_phone and email_is_personal:
+                score += 500   # Tier 1: Phone + personal email
+            elif has_phone and email_is_generic:
+                score += 400   # Tier 2: Phone + generic/business email
+            elif email_is_personal:
+                score += 300   # Tier 3: Personal email only
+            elif email_is_generic:
+                score += 250   # Tier 4: Generic email only
             elif has_phone:
-                score += 100
-            if lead.get("name") and " " in lead["name"]:
-                score += 50
+                score += 200   # Tier 5: Phone only
+
+            # Bonus points
+            if lead.get("domain"):
+                score += 20    # Has domain
             if lead.get("role"):
-                score += 25
+                score += 15    # Decision-maker role
+            if lead.get("name") and " " in lead["name"]:
+                score += 10    # Full name
             if lead.get("company"):
-                score += 10
+                score += 5     # Company name
+
             return score
 
         self.leads.sort(key=_lead_score, reverse=True)
-
-        # Apply max_leads cap
-        if self.max_leads > 0 and len(self.leads) > self.max_leads:
-            self._log(f"   Capping to top {self.max_leads} leads by quality score")
-            self.leads = self.leads[:self.max_leads]
 
         os.makedirs(self.output_folder, exist_ok=True)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         industry_slug = re.sub(r"[^\w]+", "_", self.industry.lower()).strip("_")
-        filename = f"leads_{industry_slug}_{self.country}_{timestamp}.csv"
-        filepath = os.path.join(self.output_folder, filename)
-
         fieldnames = ["Name", "Company Name", "Domain", "Role", "Phone Number", "Email", "Notes"]
 
-        with open(filepath, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for lead in self.leads:
-                notes_parts = []
-                if lead.get("source"):
-                    notes_parts.append(f"Source: {lead['source']}")
-                row = {
-                    "Name": lead.get("name", ""),
-                    "Company Name": lead.get("company", ""),
-                    "Domain": lead.get("domain", ""),
-                    "Role": lead.get("role", ""),
-                    "Phone Number": lead.get("phone", ""),
-                    "Email": lead.get("email", ""),
-                    "Notes": " | ".join(notes_parts),
-                }
-                writer.writerow(row)
+        def _write_csv(filepath, leads_subset):
+            with open(filepath, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                for lead in leads_subset:
+                    notes_parts = []
+                    if lead.get("source"):
+                        notes_parts.append(f"Source: {lead['source']}")
+                    if lead.get("email") and not is_personal_email(lead.get("email", "")):
+                        notes_parts.append("Generic email")
+                    row = {
+                        "Name": lead.get("name", ""),
+                        "Company Name": lead.get("company", ""),
+                        "Domain": lead.get("domain", ""),
+                        "Role": lead.get("role", ""),
+                        "Phone Number": lead.get("phone", ""),
+                        "Email": lead.get("email", ""),
+                        "Notes": " | ".join(notes_parts),
+                    }
+                    writer.writerow(row)
 
-        self._log(f"   Saved {len(self.leads)} leads to: {filepath}")
-        self._progress(100, f"Done! {len(self.leads)} leads exported")
-        return filepath
+        # CSV 1: ALL leads
+        all_filename = f"leads_ALL_{industry_slug}_{self.country}_{timestamp}.csv"
+        all_filepath = os.path.join(self.output_folder, all_filename)
+        _write_csv(all_filepath, self.leads)
+        self._log(f"   Saved ALL {len(self.leads)} leads to: {all_filepath}")
+
+        # CSV 2: TOP leads (capped by max_leads)
+        if self.max_leads > 0:
+            top_leads = self.leads[:self.max_leads]
+            top_filename = f"leads_TOP_{self.max_leads}_{industry_slug}_{self.country}_{timestamp}.csv"
+        else:
+            top_leads = self.leads
+            top_filename = f"leads_TOP_all_{industry_slug}_{self.country}_{timestamp}.csv"
+        top_filepath = os.path.join(self.output_folder, top_filename)
+        _write_csv(top_filepath, top_leads)
+        self._log(f"   Saved TOP {len(top_leads)} leads to: {top_filepath}")
+
+        self._progress(100, f"Done! {len(top_leads)} top leads + {len(self.leads)} total exported")
+        return top_filepath
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1742,7 +1933,11 @@ class LeadGeneratorApp:
         if result_path:
             count = len(self.pipeline.leads) if self.pipeline else 0
             self.status_var.set(f"Done! {count} leads exported")
-            messagebox.showinfo("Success", f"Generated {count} leads!\n\nSaved to:\n{result_path}")
+            messagebox.showinfo(
+                "Success",
+                f"Generated {count} total leads!\n\nTop leads saved to:\n{result_path}\n\n"
+                f"(All leads also saved in the same folder)",
+            )
         elif self.pipeline and self.pipeline._cancelled:
             self.status_var.set("Cancelled")
         else:
