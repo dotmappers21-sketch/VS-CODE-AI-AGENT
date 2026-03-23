@@ -1081,13 +1081,13 @@ class WebScraper:
         self.country_code = country_code
         self.phone_regex = COUNTRY_CONFIG.get(country_code, COUNTRY_CONFIG["AU"])["phone_regex"]
         self.limiter = RateLimiter(0.3)  # V5.1: Optimized from 0.5 (was 0.8 in V4)
-        self.session = requests.Session()
-        self.session.headers.update({
+        # V5.1: Use headers dict instead of shared Session (not thread-safe with ThreadPoolExecutor)
+        self._headers = {
             "User-Agent": (
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                 "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )
-        })
+        }
 
     def scrape_domain(self, domain: str) -> dict:
         """Scrape a domain for contact information."""
@@ -1117,7 +1117,7 @@ class WebScraper:
     def _scrape_page(self, url: str) -> dict | None:
         self.limiter.wait()
         try:
-            resp = self.session.get(url, timeout=10, allow_redirects=True)
+            resp = requests.get(url, headers=self._headers, timeout=10, allow_redirects=True)
             if resp.status_code != 200:
                 return None
             soup = BeautifulSoup(resp.text, "html.parser")
